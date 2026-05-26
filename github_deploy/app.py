@@ -71,17 +71,48 @@ def process_extraction(input_text, is_append=False):
     return True
 
 # 1. 初始的主输入框
-st.markdown("### 初始提取")
-main_input = st.text_area("在此粘贴初始飞书链接或文本内容（多个输入请用 '---' 分隔）：", 
-                          height=150, 
-                          key="main_input_widget",
-                          help="示例:\nhttps://bytedance.larkoffice.com/docx/xxx\n---\n这是我手动写的 PRD 内容...")
+st.markdown("### 📥 初始提取")
+st.markdown("请在下方输入飞书文档链接或粘贴文本内容。**（输入完毕后点击框外或按 Cmd+Enter，会自动新增下一个输入框）**")
+
+if "initial_inputs" not in st.session_state:
+    st.session_state.initial_inputs = [""]
+
+current_inputs = []
+for i in range(len(st.session_state.initial_inputs)):
+    val = st.text_area(
+        f"内容 {i+1}：",
+        value=st.session_state.initial_inputs[i],
+        height=100,
+        key=f"init_input_{i}",
+        placeholder="请输入飞书链接或直接粘贴文本..."
+    )
+    current_inputs.append(val)
+
+# 更新状态
+st.session_state.initial_inputs = current_inputs
+
+# 如果最后一个框有内容，自动追加一个新的空框并重新渲染
+if st.session_state.initial_inputs[-1].strip() != "":
+    st.session_state.initial_inputs.append("")
+    st.rerun()
 
 col1, col2 = st.columns([1, 4])
 with col1:
     if st.button("🚀 开启提取", key="btn_main_extract", use_container_width=True):
-        if process_extraction(main_input, is_append=False):
-            st.rerun()
+        # 过滤掉空的输入框
+        valid_inputs = [item for item in st.session_state.initial_inputs if item.strip()]
+        if not valid_inputs:
+            st.warning("请至少输入一个有效内容")
+        else:
+            # 将所有有效内容用 '---' 拼接，复用原有的 process_extraction 逻辑
+            combined_input = "\n---\n".join(valid_inputs)
+            if process_extraction(combined_input, is_append=False):
+                # 提取成功后，清空初始输入框
+                st.session_state.initial_inputs = [""]
+                for key in list(st.session_state.keys()):
+                    if key.startswith("init_input_"):
+                        del st.session_state[key]
+                st.rerun()
 
 st.markdown("---")
 
